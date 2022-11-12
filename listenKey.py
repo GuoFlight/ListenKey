@@ -1,11 +1,13 @@
+#!/usr/bin/python3
 from pynput.keyboard import Listener
 import os
 import time
+import signal
 from multiprocessing import Pool
 
 #####################################
-# ³ÌĞò×÷ÓÃ£º¼àÌı¼üÅÌ£¬ÈôÊäÈëÁËÖ¸¶¨µÄ×Ö·û´®£¬ÔòÖ´ĞĞÏàÓ¦µÄ¶¯×÷
-# ×÷Õß£º¾©³Ç¹ùÉÙ
+# ç¨‹åºä½œç”¨ï¼šç›‘å¬é”®ç›˜ï¼Œè‹¥è¾“å…¥äº†æŒ‡å®šçš„å­—ç¬¦ä¸²ï¼Œåˆ™æ‰§è¡Œç›¸åº”çš„åŠ¨ä½œ
+# ä½œè€…ï¼šäº¬åŸéƒ­å°‘
 #####################################
 
 class ListenKey:
@@ -15,7 +17,7 @@ class ListenKey:
         self.index = 0
 
     def on_press(self, key):
-        # print("¼àÌıµ½ÁË",key)  # DEBUG
+        # print("ç›‘å¬åˆ°äº†",key)  # DEBUG
         if self.listenStr == "" or self.actionFunc == None:
             return
         pressKey = None
@@ -24,41 +26,53 @@ class ListenKey:
         except AttributeError:
             pressKey = key
         if pressKey == self.listenStr[self.index]:
-            # print("±¾´Î°´¼ü·ûºÏÌõ¼ş")  # DEBUG
+            # print("æœ¬æ¬¡æŒ‰é”®ç¬¦åˆæ¡ä»¶")  # DEBUG
             if self.index == len(self.listenStr) - 1:
                 self.index = 0
                 self.actionFunc()
                 now = time.strftime("%Y-%m-%d  %H:%M:%S", time.localtime())
-                print("¡¾%s¡¿Ö´ĞĞ¶¯×÷" % (now))  # DEBUG
+                print("ã€%sã€‘æ‰§è¡ŒåŠ¨ä½œ" % (now),flush=True)  # DEBUG
             else:
                 self.index = (self.index + 1) % (len(self.listenStr))
                 # print("index+1:",self.index)    #DEBUG
         else:
             self.index = 0
-            # print("index±äÎª0")   #DEBUG
+            # print("indexå˜ä¸º0")   #DEBUG
 
     def on_release(self, key):
-        # print("ÒÑ¾­ÊÍ·Å:", format(key)) #DEBUG
+        # print("å·²ç»é‡Šæ”¾:", format(key)) #DEBUG
         return
 
     def start_listen(self):
-        # print("¿ªÊ¼¼àÌı")       #DEBUG
+        # print("å¼€å§‹ç›‘å¬")       #DEBUG
         with Listener(on_press=self.on_press, on_release=self.on_release) as listener:
             listener.join()
 
-#Ö¸¶¨¶¯×÷
+#æŒ‡å®šåŠ¨ä½œ
 def actionFunc():
     #os.system("shutdown -s now")
-    print("hello")
+    os.system("osascript -e 'tell application \"System Events\" to key code 12 using {control down,command down}'")
+    #print("hello",flush=True)
+
+#å¤„ç†ä¿¡å·
+def handle_exit(sig, stack_frame):
+    print('eixt',flush=True)
+    p.terminate()
+    exit(0)
+
 
 if __name__ == '__main__':
     keywords = ["jichi", "qingdajia", "dajia", "weizheng"]
+    
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGQUIT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
+    # signal.signal(signal.SIGKILL, handle_exit)
     listenKey = []
+    p = Pool(6)  # æœ€å¤šåŒæ—¶æ‰§è¡Œ6ä¸ªè¿›ç¨‹
     for i in keywords:
         listenKey.append(ListenKey(i, actionFunc))
-
-    p = Pool(6)  # ×î¶àÍ¬Ê±Ö´ĞĞ4¸ö½ø³Ì(Ò»°ãÎªCPUºËÊı),ÓĞ½ø³ÌÔËĞĞÍêÌÚ³öµÄ¿Õ¼äÔÙ·ÖÅä¸øÆäËû½ø³ÌÔËĞĞ
     for i in listenKey:
-        p.apply_async(i.start_listen)  # ÔÚ½ø³Ì³ØÖĞÌí¼Ó½ø³Ì
-    p.close()  # Ö´ĞĞjoin()Ç°±ØĞëÖ´ĞĞclose(),±íÊ¾²»ÄÜ¼ÌĞøÌí¼ÓĞÂµÄProcessÁË
-    p.join()  # µÈ´ı×Ó½ø³Ì½áÊøÔÙÍùÏÂÖ´ĞĞ
+        p.apply_async(i.start_listen)  # åœ¨è¿›ç¨‹æ± ä¸­æ·»åŠ è¿›ç¨‹
+    p.close()  # æ‰§è¡Œjoin()å‰å¿…é¡»æ‰§è¡Œclose(),è¡¨ç¤ºä¸èƒ½ç»§ç»­æ·»åŠ æ–°çš„Processäº†
+    p.join()  # ç­‰å¾…å­è¿›ç¨‹ç»“æŸå†å¾€ä¸‹æ‰§è¡Œ
